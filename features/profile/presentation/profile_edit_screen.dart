@@ -124,7 +124,8 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         .set(data, SetOptions(merge: true));
 
     if (!mounted) return;
-    context.go('/profile-view');
+    context.pop();
+    // context.go('/profile-view');
   }
 
   @override

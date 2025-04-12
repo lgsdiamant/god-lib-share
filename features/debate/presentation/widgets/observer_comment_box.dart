@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/constants.dart';
 
 class ObserverCommentBox extends StatefulWidget {
   final void Function(String) onComment;
@@ -28,17 +27,17 @@ class _ObserverCommentBoxState extends State<ObserverCommentBox> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: kDefaultPadding, vertical: 8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: _controller,
               decoration: const InputDecoration(
-                hintText: '관찰자로서 코멘트를 남겨주세요',
+                hintText: '댓글을 입력하세요...',
                 border: OutlineInputBorder(),
+                isDense: true,
               ),
               onSubmitted: (_) => _submitComment(),
             ),

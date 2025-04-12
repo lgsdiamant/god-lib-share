@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:god_of_debate/features/admin/presentation/admin_notice_screen.dart';
 import 'package:god_of_debate/features/admin/presentation/admin_topic_screen.dart';
@@ -5,6 +7,7 @@ import 'package:god_of_debate/features/admin/presentation/admin_user_screen.dart
 import 'package:god_of_debate/features/auth/presentation/login_screen.dart';
 import 'package:god_of_debate/features/auth/presentation/signup_screen.dart';
 import 'package:god_of_debate/features/debate/presentation/create_debate_room_screen.dart';
+import 'package:god_of_debate/features/debate/presentation/debate_room_detail_screen.dart';
 import 'package:god_of_debate/features/debate/presentation/waiting_debate_rooms_screen.dart';
 import 'package:god_of_debate/features/home/presentation/home_screen.dart';
 import 'package:god_of_debate/features/profile/presentation/profile_edit_screen.dart';
@@ -71,6 +74,35 @@ final router = GoRouter(
     GoRoute(
       path: '/debate-rooms',
       builder: (context, state) => const WaitingDebateRoomsScreen(), // 이걸 추가!
+    ),
+
+    GoRoute(
+      path: '/debate-room-detail/:id',
+      builder: (context, state) {
+        final roomId = state.pathParameters['id']!;
+        final roomDoc =
+            FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
+
+        return FutureBuilder<DocumentSnapshot>(
+          future: roomDoc.get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError ||
+                !snapshot.hasData ||
+                !snapshot.data!.exists) {
+              return const Scaffold(
+                body: Center(child: Text('토론방 정보를 불러올 수 없습니다.')),
+              );
+            }
+
+            return DebateRoomDetailScreen(room: snapshot.data!);
+          },
+        );
+      },
     ),
 
     /// Admin

@@ -16,12 +16,13 @@ class DebateRoomDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final title = room['title'] ?? '제목 없음';
+    final title = room['roomTitle'] ?? room['title'] ?? '제목 없음';
     final description = room['description'] ?? '';
     final createdAt = (room['createdAt'] as Timestamp?)?.toDate();
     final isPrivate = room['isPrivate'] ?? false;
-    final maxAudience = room['maxAudience'] ?? 0;
-    final debateType = room['debateType'] ?? '토론';
+    final maxObservers = room['maxObservers'] ?? -1;
+    final stances = (room['stances'] as List?)?.cast<String>() ?? [];
+    final participantCount = room['participantCount'] ?? 2;
 
     return Scaffold(
       appBar: AppBar(
@@ -32,35 +33,67 @@ class DebateRoomDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('제목: $title',
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Text('설명: $description', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            Text('토론 종류: $debateType', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            Text('공개 여부: ${isPrivate ? '비공개' : '공개'}',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            Text('관전자 제한: ${maxAudience == 0 ? '무제한' : '$maxAudience 명'}',
-                style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            Text(
-                '개설일: ${createdAt != null ? createdAt.toLocal().toString().substring(0, 10) : '알 수 없음'}',
-                style: const TextStyle(fontSize: 16)),
+            _buildInfoCard('토론방 제목', title),
+            _buildInfoCard(
+                '주제 설명', description.isNotEmpty ? description : '설명 없음'),
+            _buildInfoCard(
+                '입장 옵션', stances.isNotEmpty ? stances.join(' / ') : '없음'),
+            _buildInfoCard(
+                '토론 참가 인원', _translateParticipantCount(participantCount)),
+            _buildInfoCard('공개 여부', isPrivate ? '🔒 비공개' : '🌐 공개'),
+            _buildInfoCard(
+                '관전자 제한', maxObservers == -1 ? '무제한' : '$maxObservers명'),
+            _buildInfoCard(
+                '개설일',
+                createdAt != null
+                    ? createdAt.toLocal().toString().substring(0, 10)
+                    : '알 수 없음'),
             const Spacer(),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
                 onPressed: () => _joinDebate(context),
                 style: kButtonStyle,
-                child: const Text('참여하기'),
+                icon: const Icon(Icons.login),
+                label: const Text('토론방 입장하기'),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildInfoCard(String title, String content) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      elevation: 2,
+      child: ListTile(
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            content,
+            style: const TextStyle(fontSize: 15),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _translateParticipantCount(int count) {
+    switch (count) {
+      case 2:
+        return '1:1 토론';
+      case 3:
+        return '3자 토론';
+      case 4:
+        return '2:2 토론 또는 4자 토론';
+      default:
+        return '$count명 토론';
+    }
   }
 }

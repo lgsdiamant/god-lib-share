@@ -20,9 +20,19 @@ class DebateRoomController {
 
     final docRef =
         FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
-    await docRef.update({
-      'observers': FieldValue.arrayUnion([user.uid]),
-    });
+    final roomSnapshot = await docRef.get();
+    final roomData = roomSnapshot.data();
+
+    if (roomData == null) return;
+
+    final debaters = (roomData['debaters'] as List?)?.cast<String>() ?? [];
+
+    // ✅ 토론자는 관전자에 추가하지 않는다
+    if (!debaters.contains(user.uid)) {
+      await docRef.update({
+        'observers': FieldValue.arrayUnion([user.uid]),
+      });
+    }
   }
 
   void dispose() {

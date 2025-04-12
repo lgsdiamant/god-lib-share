@@ -8,30 +8,61 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = message['content'] ?? '';
-    final senderType = message['senderType'] ?? 'unknown';
+    final senderType = message['senderType'] ?? 'observer';
+    final senderName = message['senderName'] ?? 'Unknown';
+    final timestamp = (message['timestamp'] as String?) ?? '';
 
-    final isObserver = senderType == 'observer';
+    final isDebater = senderType == 'debater';
+    final isHost = message['isHost'] ?? false;
 
     return Align(
-      alignment: isObserver ? Alignment.centerLeft : Alignment.centerRight,
+      alignment: isDebater
+          ? (isHost ? Alignment.centerRight : Alignment.centerLeft)
+          : Alignment.centerLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
-        ),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isObserver
-              ? Colors.grey[300]
-              : Theme.of(context).colorScheme.primary.withOpacity(0.8),
+          color: isDebater
+              ? (isHost ? Colors.blue.shade100 : Colors.green.shade100)
+              : Colors.grey.shade300,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          content,
-          style: TextStyle(
-            color: isObserver ? Colors.black87 : Colors.white,
-            fontSize: 16,
-          ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Colors.blueGrey.shade200,
+                  child: Text(senderName.isNotEmpty ? senderName[0] : '?'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    senderName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                Text(
+                  timestamp,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              content,
+              style: const TextStyle(fontSize: 15),
+            ),
+          ],
         ),
       ),
     );

@@ -6,7 +6,6 @@ import '../../../core/widgets/loading_indicator.dart';
 import '../application/debate_room_controller.dart';
 import '../application/debate_providers.dart';
 import 'widgets/chat_bubble.dart';
-import 'widgets/debate_chat_widget.dart';
 import 'widgets/observer_comment_box.dart';
 import 'widgets/viewer_vote_button.dart';
 
@@ -21,18 +20,20 @@ class DebateRoomScreen extends ConsumerStatefulWidget {
 
 class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
   late final DebateRoomController _controller;
-  String? _selectedDebaterId; // ✅ 선택한 토론자 ID 저장
+  double _commentBoxHeightFactor = 0.2; // ✅ 초기 댓글창 높이 (20%)
+  bool _isExpanded = false;
+  String? _selectedDebaterId;
 
   @override
   void initState() {
     super.initState();
     _controller = DebateRoomController(widget.roomId, ref);
-    _controller.initialize(); // ✅ 관전자 입장 등록
+    _controller.initialize();
   }
 
   @override
   void dispose() {
-    _controller.dispose(); // ✅ 관전자 퇴장 처리
+    _controller.dispose();
     super.dispose();
   }
 
@@ -42,134 +43,148 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
     final messagesAsync = ref.watch(debateMessagesProvider(widget.roomId));
     final votesAsync = ref.watch(debateVotesProvider(widget.roomId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('토론방'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.flag_outlined),
-            tooltip: 'AI 평가 요청',
-            onPressed: _controller.requestAiEvaluation,
-          ),
-          IconButton(
-            icon: const Icon(Icons.stop_circle_outlined),
-            tooltip: '토론 종료',
-            onPressed: _controller.endDebate,
-          ),
-        ],
-      ),
-      body: debateRoomAsync.when(
-        data: (room) {
-          final debaters = (room['debaters'] as List?)?.cast<String>() ?? [];
-          final observers = (room['observers'] as List?)?.cast<String>() ?? [];
+    return debateRoomAsync.when(
+      data: (room) {
+        final roomTitle = room['roomTitle'] ?? room['title'] ?? '토론방';
+        final topicTitle = room['title'] ?? '주제 없음';
+        final topicDescription = room['description'] ?? '';
 
-          return Column(
-            children: [
-              _buildRoomInfo(room, observers.length),
-              const Divider(),
-              Expanded(
-                child: messagesAsync.when(
-                  data: (messages) => ListView.builder(
-                    padding: const EdgeInsets.all(kDefaultPadding),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) {
-                      final message = messages[index];
-                      return ChatBubble(message: message);
-                    },
-                  ),
-                  loading: () => const LoadingIndicator(),
-                  error: (e, _) => Center(child: Text('채팅 로딩 실패: $e')),
-                ),
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(roomTitle),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.flag),
+                tooltip: 'AI 중간평가',
+                onPressed: _controller.requestAiEvaluation,
               ),
-              const Divider(),
-              DebateChatWidget(onSend: _controller.sendMessage),
-              ObserverCommentBox(onComment: _controller.sendObserverComment),
-              const SizedBox(height: 8),
-              _buildDebaterVoteSection(debaters), // ✅ 토론자 투표
-              const SizedBox(height: 8),
-              votesAsync.when(
-                data: (votes) => _buildVoteResult(votes),
-                loading: () => const LoadingIndicator(),
-                error: (e, _) => Text('투표 결과 로딩 실패: $e'),
+              IconButton(
+                icon: const Icon(Icons.stop_circle),
+                tooltip: '토론 종료',
+                onPressed: _controller.endDebate,
               ),
             ],
+          ),
+          body: Column(
+            children: [
+              _buildTopicCard(topicTitle, topicDescription),
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildChatArea(messagesAsync),
+                    _buildObserverCommentBox(votesAsync),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const LoadingIndicator(),
+      error: (e, _) =>
+          Scaffold(body: Center(child: Text('토론방 정보를 불러올 수 없습니다: $e'))),
+    );
+  }
+
+  Widget _buildTopicCard(String title, String description) {
+    return ExpansionTile(
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kDefaultPadding),
+          child: Text(description),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatArea(AsyncValue<List<Map<String, dynamic>>> messagesAsync) {
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height * _commentBoxHeightFactor),
+      child: messagesAsync.when(
+        data: (messages) {
+          return ListView.builder(
+            padding: const EdgeInsets.all(kDefaultPadding),
+            itemCount: messages.length,
+            itemBuilder: (context, index) {
+              final message = messages[index];
+              return ChatBubble(message: message);
+            },
           );
         },
         loading: () => const LoadingIndicator(),
-        error: (e, _) => Center(child: Text('토론방 정보를 불러올 수 없습니다: $e')),
+        error: (e, _) => Center(child: Text('채팅 로딩 실패: $e')),
       ),
     );
   }
 
-  Widget _buildRoomInfo(Map<String, dynamic> room, int observerCount) {
-    return Padding(
-      padding: const EdgeInsets.all(kDefaultPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            room['title'] ?? '제목 없음',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  Widget _buildObserverCommentBox(AsyncValue<Map<String, int>> votesAsync) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: GestureDetector(
+        onVerticalDragUpdate: (details) {
+          setState(() {
+            _commentBoxHeightFactor -=
+                details.primaryDelta! / MediaQuery.of(context).size.height;
+            _commentBoxHeightFactor = _commentBoxHeightFactor.clamp(0.1, 0.7);
+          });
+        },
+        onTap: () {
+          setState(() {
+            _isExpanded = !_isExpanded;
+            _commentBoxHeightFactor = _isExpanded ? 0.5 : 0.2;
+          });
+        },
+        child: Container(
+          height: MediaQuery.of(context).size.height * _commentBoxHeightFactor,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8F8F8),
+            border: Border(
+              top: BorderSide(color: Colors.grey),
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            room['description'] ?? '설명 없음',
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          Row(
+          child: Column(
             children: [
-              const Text('상태: ', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text(room['status'] ?? '알 수 없음'),
+              const SizedBox(height: 8),
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: ObserverCommentBox(
+                    onComment: _controller.sendObserverComment),
+              ),
+              const Divider(),
+              Expanded(
+                child: votesAsync.when(
+                  data: (votes) => _buildVoteResult(votes),
+                  loading: () => const LoadingIndicator(),
+                  error: (e, _) => Text('투표 결과 로딩 실패: $e'),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Text('관전자 수: ',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              Text('$observerCount명'),
-            ],
-          ),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildDebaterVoteSection(List<String> debaters) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: debaters.map((debaterId) {
-        final isSelected = _selectedDebaterId == debaterId;
-        return ViewerVoteButton(
-          debateRoomId: widget.roomId,
-          voterId: 'currentUserId', // 🔥 실제 로그인 유저 ID로 교체 필요
-          targetDebaterId: debaterId,
-          isSelected: isSelected,
-          onTap: () {
-            setState(() {
-              _selectedDebaterId = debaterId;
-            });
-            _controller.voteForDebater(debaterId);
-          },
-        );
-      }).toList(),
     );
   }
 
   Widget _buildVoteResult(Map<String, int> votes) {
     if (votes.isEmpty) {
-      return const Text('아직 투표가 없습니다.');
+      return const Center(child: Text('아직 투표가 없습니다.'));
     }
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.all(8),
       children: votes.entries.map((entry) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            '${entry.key}: ${entry.value}표',
-            style: const TextStyle(fontSize: 16),
-          ),
+        return ListTile(
+          title: Text('${entry.key} : ${entry.value}표'),
         );
       }).toList(),
     );

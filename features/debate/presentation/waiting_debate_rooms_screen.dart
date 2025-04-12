@@ -77,7 +77,7 @@ class WaitingDebateRoomsScreen extends ConsumerWidget {
                 title: const Text('새 주제 만들기'),
                 onTap: () {
                   Navigator.pop(context);
-                  context.go('/create-topic');
+                  context.push('/create-topic');
                 },
               ),
               ListTile(
