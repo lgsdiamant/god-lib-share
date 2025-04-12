@@ -131,10 +131,7 @@ class DebateRepository {
     });
   }
 
-  // 추가
-  // debate_repository.dart 에 추가할 것
-
-// 신청 수락
+  // ✅ 신청 수락
   Future<void> acceptApplication(
       String roomId, String userId, String stance) async {
     final roomRef = _firestore.collection('debate_rooms').doc(roomId);
@@ -161,7 +158,7 @@ class DebateRepository {
     });
   }
 
-// 신청 거절
+  // ✅ 신청 거절
   Future<void> rejectApplication(String roomId, String userId) async {
     final applicationRef = _firestore
         .collection('debate_rooms')

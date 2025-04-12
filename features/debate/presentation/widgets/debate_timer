@@ -1,0 +1,56 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+class DebateTimer extends StatefulWidget {
+  final DateTime startTime; // 토론 시작 시간
+
+  const DebateTimer({super.key, required this.startTime});
+
+  @override
+  State<DebateTimer> createState() => _DebateTimerState();
+}
+
+class _DebateTimerState extends State<DebateTimer> {
+  late Timer _timer;
+  Duration _elapsed = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateElapsed();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateElapsed());
+  }
+
+  void _updateElapsed() {
+    setState(() {
+      _elapsed = DateTime.now().difference(widget.startTime);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final minutes = _elapsed.inMinutes;
+    final seconds = _elapsed.inSeconds % 60;
+
+    return Row(
+      children: [
+        const Icon(Icons.timer, size: 18, color: Colors.grey),
+        const SizedBox(width: 4),
+        Text(
+          '$minutes:${seconds.toString().padLeft(2, '0')} 경과',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}

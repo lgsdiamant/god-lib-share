@@ -11,12 +11,16 @@ class ObserverCommentBox extends StatefulWidget {
 
 class _ObserverCommentBoxState extends State<ObserverCommentBox> {
   final TextEditingController _controller = TextEditingController();
+  bool _isWriting = false;
 
   void _submitComment() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     widget.onComment(text);
     _controller.clear();
+    setState(() {
+      _isWriting = false;
+    });
   }
 
   @override
@@ -27,26 +31,54 @@ class _ObserverCommentBoxState extends State<ObserverCommentBox> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade300)),
+      ),
       child: Row(
         children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                hintText: '댓글을 입력하세요...',
-                border: OutlineInputBorder(),
-                isDense: true,
+          if (_isWriting)
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '댓글을 입력하세요...',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _isWriting = value.isNotEmpty;
+                  });
+                },
+                onSubmitted: (_) => _submitComment(),
               ),
-              onSubmitted: (_) => _submitComment(),
+            )
+          else
+            Expanded(
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isWriting = true;
+                  });
+                },
+                child:
+                    const Text('관전자로 댓글 작성하기', style: TextStyle(fontSize: 16)),
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.send),
-            onPressed: _submitComment,
-          ),
+          if (_isWriting) ...[
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.send),
+              onPressed: _submitComment,
+            ),
+          ]
         ],
       ),
     );

@@ -13,19 +13,29 @@ class ChatBubble extends StatelessWidget {
     final timestamp = (message['timestamp'] as String?) ?? '';
 
     final isDebater = senderType == 'debater';
-    final isHost = message['isHost'] ?? false;
+    final isObserver = senderType == 'observer';
+    final isSystem = senderType == 'system';
+
+    Color backgroundColor;
+    Alignment alignment;
+    if (isDebater) {
+      backgroundColor = Colors.blue.shade100;
+      alignment = Alignment.centerLeft;
+    } else if (isObserver) {
+      backgroundColor = Colors.grey.shade300;
+      alignment = Alignment.centerLeft;
+    } else {
+      backgroundColor = Colors.orange.shade100;
+      alignment = Alignment.center;
+    }
 
     return Align(
-      alignment: isDebater
-          ? (isHost ? Alignment.centerRight : Alignment.centerLeft)
-          : Alignment.centerLeft,
+      alignment: alignment,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isDebater
-              ? (isHost ? Colors.blue.shade100 : Colors.green.shade100)
-              : Colors.grey.shade300,
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(12),
         ),
         constraints: BoxConstraints(
@@ -34,33 +44,42 @@ class ChatBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor: Colors.blueGrey.shade200,
-                  child: Text(senderName.isNotEmpty ? senderName[0] : '?'),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    senderName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+            if (!isSystem) // 시스템 메시지는 발신자 정보 생략
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: Colors.blueGrey.shade200,
+                    child: Text(
+                      senderName.isNotEmpty ? senderName[0] : '?',
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
                     ),
                   ),
-                ),
-                Text(
-                  timestamp,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      senderName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    timestamp,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ],
+              ),
+            if (!isSystem) const SizedBox(height: 6),
             Text(
               content,
-              style: const TextStyle(fontSize: 15),
+              style: TextStyle(
+                fontSize: 15,
+                color: isSystem ? Colors.deepOrange : Colors.black87,
+                fontStyle: isSystem ? FontStyle.italic : FontStyle.normal,
+              ),
             ),
           ],
         ),

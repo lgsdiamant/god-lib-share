@@ -23,7 +23,6 @@ class DebateRoomController {
         FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
     final roomSnapshot = await docRef.get();
     final roomData = roomSnapshot.data();
-
     if (roomData == null) return;
 
     final debaters = (roomData['debaters'] as List?)?.cast<String>() ?? [];
@@ -69,7 +68,6 @@ class DebateRoomController {
     await _debateRepository.endDebate(roomId);
   }
 
-  // ✅ 방장이 신청 수락
   Future<void> acceptDebater(String userId) async {
     await _debateRepository.acceptDebater(roomId, userId);
     await _debateRepository.sendApplicationNotification(
@@ -79,7 +77,6 @@ class DebateRoomController {
     );
   }
 
-  // ✅ 방장이 신청 거절
   Future<void> rejectDebater(String userId) async {
     await _debateRepository.rejectDebater(roomId, userId);
     await _debateRepository.sendApplicationNotification(
@@ -88,8 +85,6 @@ class DebateRoomController {
       '😥 토론자 신청이 정중히 거절되었습니다.',
     );
   }
-
-  // debate_room_controller.dart 에 추가할 것
 
   Future<void> acceptApplication(
       BuildContext context, String userId, String stance) async {
@@ -127,19 +122,18 @@ class DebateRoomController {
   }
 
   Future<void> applyAsDebater(String stance, String message) async {
-    final auth = ref.read(firebaseAuthProvider); // ✅
-    final user = auth.currentUser; // ✅
+    final auth = ref.read(firebaseAuthProvider);
+    final user = auth.currentUser;
     if (user == null) return;
 
     await _debateRepository.applyDebater(
       roomId,
-      user.uid, // ✅ 추가
+      user.uid,
       stance,
       message,
     );
   }
 
-  // ✅ 관전자로 입장 메소드 추가
   Future<void> enterAsObserver() async {
     final auth = ref.read(firebaseAuthProvider);
     final user = auth.currentUser;
@@ -151,5 +145,44 @@ class DebateRoomController {
         .update({
       'observers': FieldValue.arrayUnion([user.uid]),
     });
+  }
+
+  /// ✅ 관전자 강제 퇴장 (예: 관전자가 직접 나가기)
+  Future<void> leaveAsObserver() async {
+    final auth = ref.read(firebaseAuthProvider);
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('debate_rooms')
+        .doc(roomId)
+        .update({
+      'observers': FieldValue.arrayRemove([user.uid]),
+    });
+  }
+
+  /// ✅ 토론자 강제 나가기 (퇴장 요청)
+  Future<void> leaveAsDebater({bool force = false}) async {
+    final auth = ref.read(firebaseAuthProvider);
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    final docRef =
+        FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
+
+    if (force) {
+      // 강제 퇴장: 즉시 토론 종료로 간주
+      await docRef.update({
+        'status': 'incompleted',
+        'endedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // 정상 퇴장: 방장에게 요청 보내야함 (별도 기능 필요)
+      await _debateRepository.sendApplicationNotification(
+        roomId,
+        user.uid,
+        '⚠️ 토론자가 퇴장을 요청했습니다. 수락해주세요.',
+      );
+    }
   }
 }

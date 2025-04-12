@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:god_of_debate/features/debate/presentation/widgets/debate_timer';
 import '../../../core/constants/constants.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../application/debate_room_controller.dart';
@@ -18,9 +20,6 @@ class DebateRoomScreen extends ConsumerStatefulWidget {
 
 class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
   late final DebateRoomController _controller;
-  double _commentBoxHeightFactor = 0.2;
-  bool _isExpanded = false;
-  String? _selectedDebaterId;
 
   @override
   void initState() {
@@ -46,6 +45,7 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
         final roomTitle = room['roomTitle'] ?? room['title'] ?? '토론방';
         final topicTitle = room['title'] ?? '주제 없음';
         final topicDescription = room['description'] ?? '';
+        final createdAt = (room['createdAt'] as Timestamp?)?.toDate();
 
         return Scaffold(
           appBar: AppBar(
@@ -53,18 +53,22 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
             actions: [
               IconButton(
                 icon: const Icon(Icons.flag),
-                tooltip: 'AI 중간평가',
+                tooltip: 'AI 평가 요청',
                 onPressed: _controller.requestAiEvaluation,
               ),
               IconButton(
-                icon: const Icon(Icons.stop_circle),
-                tooltip: '토론 종료',
-                onPressed: _controller.endDebate,
+                icon: const Icon(Icons.exit_to_app),
+                tooltip: '나가기',
+                onPressed: () {
+                  Navigator.pop(context); // ✅ 임시로 홈으로
+                },
               ),
             ],
           ),
           body: Column(
             children: [
+              _buildStatusBar(room), // ✅ 상태바
+              _buildTimer(createdAt), // ✅ 타이머
               _buildTopicCard(topicTitle, topicDescription),
               Expanded(
                 child: Stack(
@@ -79,8 +83,51 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
         );
       },
       loading: () => const LoadingIndicator(),
-      error: (e, _) =>
-          Scaffold(body: Center(child: Text('토론방 정보를 불러올 수 없습니다: $e'))),
+      error: (e, _) => Scaffold(
+        body: Center(child: Text('토론방 정보를 불러올 수 없습니다: $e')),
+      ),
+    );
+  }
+
+  Widget _buildStatusBar(Map<String, dynamic> room) {
+    final status = room['status'] ?? 'waiting';
+    String statusText;
+
+    switch (status) {
+      case 'waiting':
+        statusText = '⏳ 대기 중입니다. 토론 시작을 기다리는 중...';
+        break;
+      case 'active':
+        statusText = '🔥 토론이 진행 중입니다!';
+        break;
+      case 'closed':
+        statusText = '🏁 토론이 종료되었습니다.';
+        break;
+      default:
+        statusText = '알 수 없음';
+    }
+
+    return Container(
+      width: double.infinity,
+      color: Colors.amber.shade100,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: Text(
+          statusText,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimer(DateTime? createdAt) {
+    if (createdAt == null) return const SizedBox();
+
+    return Container(
+      width: double.infinity,
+      color: Colors.grey.shade100,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: DebateTimer(startTime: createdAt), // ✅ 여기 고쳤어
     );
   }
 
@@ -88,7 +135,7 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
     return ExpansionTile(
       title: Text(
         title,
-        style: const TextStyle(fontWeight: FontWeight.bold),
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
       ),
       children: [
         Padding(
@@ -101,9 +148,7 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
 
   Widget _buildChatArea(AsyncValue<List<Map<String, dynamic>>> messagesAsync) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).size.height * _commentBoxHeightFactor,
-      ),
+      padding: const EdgeInsets.only(bottom: 80), // ✅ 댓글창 높이만큼
       child: messagesAsync.when(
         data: (messages) {
           return ListView.builder(
@@ -124,71 +169,63 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
   Widget _buildObserverCommentBox(AsyncValue<Map<String, int>> votesAsync) {
     return Align(
       alignment: Alignment.bottomCenter,
-      child: GestureDetector(
-        onVerticalDragUpdate: (details) {
-          setState(() {
-            _commentBoxHeightFactor -=
-                details.primaryDelta! / MediaQuery.of(context).size.height;
-            _commentBoxHeightFactor = _commentBoxHeightFactor.clamp(0.1, 0.7);
-          });
-        },
-        onTap: () {
-          setState(() {
-            _isExpanded = !_isExpanded;
-            _commentBoxHeightFactor = _isExpanded ? 0.5 : 0.2;
-          });
-        },
-        child: Container(
-          height: MediaQuery.of(context).size.height * _commentBoxHeightFactor,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF8F8F8),
-            border: Border(
-              top: BorderSide(color: Colors.grey),
+      child: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: ObserverCommentBox(
+                onComment: _controller.sendObserverComment,
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 50,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade400,
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ObserverCommentBox(
-                  onComment: _controller.sendObserverComment,
-                ),
-              ),
-              const Divider(),
-              Expanded(
-                child: votesAsync.when(
-                  data: (votes) => _buildVoteResult(votes),
-                  loading: () => const LoadingIndicator(),
-                  error: (e, _) => Text('투표 결과 로딩 실패: $e'),
-                ),
-              ),
-            ],
-          ),
+            IconButton(
+              icon: const Icon(Icons.poll),
+              tooltip: '투표현황',
+              onPressed: () {
+                _showVoteDialog(votesAsync);
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildVoteResult(Map<String, int> votes) {
-    if (votes.isEmpty) {
-      return const Center(child: Text('아직 투표가 없습니다.'));
-    }
-    return ListView(
-      padding: const EdgeInsets.all(8),
-      children: votes.entries.map((entry) {
-        return ListTile(
-          title: Text('${entry.key} : ${entry.value}표'),
+  void _showVoteDialog(AsyncValue<Map<String, int>> votesAsync) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('투표 현황'),
+          content: votesAsync.when(
+            data: (votes) {
+              if (votes.isEmpty) {
+                return const Text('아직 투표가 없습니다.');
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: votes.entries.map((entry) {
+                  return ListTile(
+                    title: Text('${entry.key}: ${entry.value}표'),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const CircularProgressIndicator(),
+            error: (e, _) => Text('투표 로딩 실패: $e'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('닫기'),
+            ),
+          ],
         );
-      }).toList(),
+      },
     );
   }
 }

@@ -83,29 +83,8 @@ final router = GoRouter(
     GoRoute(
       path: '/debate-room-detail/:id',
       builder: (context, state) {
-        final roomId = state.pathParameters['id']!;
-        final roomDoc =
-            FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
-
-        return FutureBuilder<DocumentSnapshot>(
-          future: roomDoc.get(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError ||
-                !snapshot.hasData ||
-                !snapshot.data!.exists) {
-              return const Scaffold(
-                body: Center(child: Text('토론방 정보를 불러올 수 없습니다.')),
-              );
-            }
-
-            return DebateRoomDetailScreen(room: snapshot.data!);
-          },
-        );
+        final id = state.pathParameters['id']!;
+        return DebateRoomDetailScreen(roomId: id); // ✅ DebateRoomDetailScreen
       },
     ),
 

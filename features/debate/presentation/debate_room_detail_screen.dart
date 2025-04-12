@@ -2,15 +2,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:god_of_debate/core/providers/firebase_providers.dart';
 import '../../../core/constants/constants.dart';
-import '../../user/application/user_providers.dart'; // ✅ 추가
-import '../application/debate_room_controller.dart'; // ✅ 추가
+import '../../user/application/user_providers.dart'; // ✅ 닉네임 가져오는 Provider
+import '../application/debate_room_controller.dart'; // ✅ 신청/입장 로직
+import '../application/debate_providers.dart'; // ✅ debateRoomProvider
 
 class DebateRoomDetailScreen extends ConsumerStatefulWidget {
-  final DocumentSnapshot room;
+  final String roomId; // ✅ 이제는 roomId만 받아
 
-  const DebateRoomDetailScreen({super.key, required this.room});
+  const DebateRoomDetailScreen({super.key, required this.roomId});
 
   @override
   ConsumerState<DebateRoomDetailScreen> createState() =>
@@ -24,12 +24,10 @@ class _DebateRoomDetailScreenState
   @override
   void initState() {
     super.initState();
-    _controller = DebateRoomController(widget.room.id, ref);
+    _controller = DebateRoomController(widget.roomId, ref);
   }
 
-  void _showApplyDebaterDialog() {
-    final stances = (widget.room['stances'] as List?)?.cast<String>() ?? [];
-
+  void _showApplyDebaterDialog(List<String> stances) {
     String? selectedStance;
     final messageController = TextEditingController();
 
@@ -52,7 +50,7 @@ class _DebateRoomDetailScreenState
                   selectedStance = value;
                 },
                 decoration: const InputDecoration(
-                  labelText: '입장을 선택하세요',
+                  labelText: '주장을 선택하세요',
                 ),
               ),
               const SizedBox(height: 12),
@@ -75,7 +73,7 @@ class _DebateRoomDetailScreenState
                 if (selectedStance == null ||
                     messageController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('입장과 메시지를 모두 입력하세요.')),
+                    const SnackBar(content: Text('주장과 메시지를 모두 입력하세요.')),
                   );
                   return;
                 }
@@ -113,7 +111,7 @@ class _DebateRoomDetailScreenState
                 await _controller.enterAsObserver();
                 if (mounted) {
                   Navigator.pop(context);
-                  context.go('/debate-room/${widget.room.id}');
+                  context.go('/debate-room/${widget.roomId}');
                 }
               },
               child: const Text('입장하기'),
@@ -126,115 +124,105 @@ class _DebateRoomDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final isHost = (widget.room['createdBy'] ==
-        ref.read(firebaseAuthProvider).currentUser?.uid);
+    final roomAsync = ref.watch(debateRoomProvider(widget.roomId));
 
-    final room = widget.room; // ✅
-    final roomId = room.id; // ✅ 추가
+    return roomAsync.when(
+      data: (room) {
+        final title = room['roomTitle'] ?? room['title'] ?? '제목 없음';
+        final description = room['description'] ?? '';
+        final createdAt = (room['createdAt'] as Timestamp?)?.toDate();
+        final stances = (room['stances'] as List?)?.cast<String>() ?? [];
+        final participantCount = room['participantCount'] ?? 2;
+        final maxObservers = room['maxObservers'] ?? -1;
+        final isPrivate = room['isPrivate'] ?? false;
+        final createdBy = room['createdBy'] ?? '';
+        final debaters = (room['debaters'] as List?)?.cast<String>() ?? [];
+        final observers = (room['observers'] as List?)?.cast<String>() ?? [];
+        final status = room['status'] ?? 'waiting';
 
-    final title = room['roomTitle'] ?? room['title'] ?? '제목 없음';
-    final description = room['description'] ?? '';
-    final createdAt = (room['createdAt'] as Timestamp?)?.toDate();
-    final isPrivate = room['isPrivate'] ?? false;
-    final maxObservers = room['maxObservers'] ?? -1;
-    final stances = (room['stances'] as List?)?.cast<String>() ?? [];
-    final participantCount = room['participantCount'] ?? 2;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('토론방 상세정보'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(kDefaultPadding),
-        child: Column(
-          children: [
-            Row(
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('토론방 상세정보'),
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(kDefaultPadding),
+            child: Column(
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.how_to_reg),
-                    label: const Text('토론자로 신청하기'),
-                    onPressed: _showApplyDebaterDialog,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.how_to_reg),
+                        label: const Text('토론자로 신청'),
+                        onPressed: status == 'waiting'
+                            ? () => _showApplyDebaterDialog(stances)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.remove_red_eye),
+                        label: const Text('관전자로 입장'),
+                        onPressed: () => _confirmEnterAsObserver(),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(height: 20),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.remove_red_eye),
-                    label: const Text('관전자로 입장하기'),
-                    onPressed: _confirmEnterAsObserver,
+                  child: ListView(
+                    children: [
+                      _buildInfoCard('토론방 제목', title),
+                      _buildInfoCard('주제 설명', description),
+                      _buildInfoCard('참가 주장', stances.join(' / ')),
+                      _buildInfoCard('개설자 UID', createdBy),
+                      _buildInfoCard('토론자 수', '${debaters.length}명'),
+                      _buildInfoCard('관전자 수', '${observers.length}명'),
+                      _buildInfoCard('토론 상태', _translateStatus(status)),
+                      _buildInfoCard(
+                          '개설일',
+                          createdAt != null
+                              ? createdAt.toLocal().toString().substring(0, 16)
+                              : '알 수 없음'),
+                      _buildInfoCard('관전자 제한',
+                          maxObservers == -1 ? '무제한' : '$maxObservers명'),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildInfoCard('토론방 제목', title),
-                  _buildInfoCard(
-                      '주제 설명', description.isNotEmpty ? description : '설명 없음'),
-                  _buildInfoCard(
-                      '입장 옵션', stances.isNotEmpty ? stances.join(' / ') : '없음'),
-                  _buildInfoCard(
-                      '토론 참가 인원', _translateParticipantCount(participantCount)),
-                  _buildInfoCard('공개 여부', isPrivate ? '🔒 비공개' : '🌐 공개'),
-                  _buildInfoCard(
-                      '관전자 제한', maxObservers == -1 ? '무제한' : '$maxObservers명'),
-                  _buildInfoCard(
-                      '개설일',
-                      createdAt != null
-                          ? createdAt.toLocal().toString().substring(0, 10)
-                          : '알 수 없음'),
-                  const Spacer(),
-                  // debate_room_detail_screen.dart 에 추가할 것
-// 방장이라면 신청 관리 버튼 보이기
-                  if (isHost)
-                    ElevatedButton(
-                      onPressed: () {
-                        context.push('/debate-applications/$roomId');
-                      },
-                      child: const Text('신청 관리'),
-                    )
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('토론방 정보를 불러올 수 없습니다: $e')),
     );
   }
 
   Widget _buildInfoCard(String title, String content) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      elevation: 2,
       child: ListTile(
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            content,
-            style: const TextStyle(fontSize: 15),
-          ),
-        ),
+        subtitle: Text(content),
       ),
     );
   }
 
-  String _translateParticipantCount(int count) {
-    switch (count) {
-      case 2:
-        return '1:1 토론';
-      case 3:
-        return '3자 토론';
-      case 4:
-        return '2:2 토론';
+  String _translateStatus(String status) {
+    switch (status) {
+      case 'waiting':
+        return '대기 중';
+      case 'active':
+        return '진행 중';
+      case 'closed':
+        return '종료됨';
       default:
-        return '$count명 토론';
+        return '알 수 없음';
     }
   }
 }
