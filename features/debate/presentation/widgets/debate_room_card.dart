@@ -12,11 +12,18 @@ class DebateRoomCard extends StatelessWidget {
     final roomId = room.id;
     final title = room['title'] ?? '제목 없음';
     final description = room['description'] ?? '설명 없음';
-    final hostNickname = room['hostNickname'] ?? '방장';
+    final createdByUid = room['createdBy'] ?? '방장';
     final status = room['status'] ?? 'unknown';
     final createdAt = (room['createdAt'] as Timestamp?)?.toDate();
     final debaters = (room['debaters'] as List?)?.length ?? 0;
     final observers = (room['observers'] as List?)?.length ?? 0;
+    final stances = (room['stances'] as List?)?.cast<String>() ?? [];
+    final selectedStances = (room['selectedStances'] as Map?) ?? {};
+
+    // 남은 입장 계산
+    final takenStances = selectedStances.values.toSet();
+    final availableStances =
+        stances.where((stance) => !takenStances.contains(stance)).toList();
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -31,11 +38,15 @@ class DebateRoomCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text('개설자: $hostNickname'),
+            Text('방장 UID: $createdByUid'),
             const SizedBox(height: 4),
-            Text('토론자: $debaters명 | 관전자: $observers명'),
+            Text('토론자 수: $debaters명  |  관전자 수: $observers명'),
             const SizedBox(height: 4),
-            Text('상태: ${_translateStatus(status)}'),
+            Text('진행 상태: ${_translateStatus(status)}'),
+            const SizedBox(height: 8),
+            if (availableStances.isNotEmpty)
+              Text('남은 입장: ${availableStances.join(', ')}',
+                  style: const TextStyle(color: Colors.blue)),
             if (createdAt != null) ...[
               const SizedBox(height: 4),
               Text('개설일: ${createdAt.toLocal().toString().substring(0, 10)}'),

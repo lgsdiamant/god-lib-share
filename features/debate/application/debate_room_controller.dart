@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/providers/firebase_providers.dart';
 import '../data/debate_repository.dart';
 
 class DebateRoomController {
@@ -12,19 +14,36 @@ class DebateRoomController {
   }
 
   Future<void> initialize() async {
-    // 방 초기화 작업
-    // 예: 방 정보 불러오기, 필요한 초기 데이터 설정
+    final auth = ref.read(firebaseAuthProvider);
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    final docRef =
+        FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
+    await docRef.update({
+      'observers': FieldValue.arrayUnion([user.uid]),
+    });
+  }
+
+  void dispose() {
+    final auth = ref.read(firebaseAuthProvider);
+    final user = auth.currentUser;
+    if (user == null) return;
+
+    final docRef =
+        FirebaseFirestore.instance.collection('debate_rooms').doc(roomId);
+    docRef.update({
+      'observers': FieldValue.arrayRemove([user.uid]),
+    });
   }
 
   void sendMessage(String messageContent) async {
     if (messageContent.trim().isEmpty) return;
-
     await _debateRepository.sendMessage(roomId, messageContent);
   }
 
   void sendObserverComment(String commentContent) async {
     if (commentContent.trim().isEmpty) return;
-
     await _debateRepository.sendObserverComment(roomId, commentContent);
   }
 
@@ -38,9 +57,5 @@ class DebateRoomController {
 
   void endDebate() async {
     await _debateRepository.endDebate(roomId);
-  }
-
-  void dispose() {
-    // 필요 시 Controller 클린업 작업
   }
 }

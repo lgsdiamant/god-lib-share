@@ -4,6 +4,7 @@ import 'package:god_of_debate/features/admin/presentation/admin_topic_screen.dar
 import 'package:god_of_debate/features/admin/presentation/admin_user_screen.dart';
 import 'package:god_of_debate/features/auth/presentation/login_screen.dart';
 import 'package:god_of_debate/features/auth/presentation/signup_screen.dart';
+import 'package:god_of_debate/features/debate/presentation/create_debate_room_screen.dart';
 import 'package:god_of_debate/features/debate/presentation/waiting_debate_rooms_screen.dart';
 import 'package:god_of_debate/features/home/presentation/home_screen.dart';
 import 'package:god_of_debate/features/profile/presentation/profile_edit_screen.dart';
@@ -13,6 +14,8 @@ import 'package:god_of_debate/features/debate/presentation/debate_room_screen.da
 import 'package:god_of_debate/features/ai/presentation/ai_result_screen.dart';
 import 'package:god_of_debate/features/admin/presentation/admin_screen.dart';
 import 'package:god_of_debate/features/splash/presentation/splash_screen.dart';
+import 'package:god_of_debate/features/topic/presentation/topic_template_search_screen.dart';
+import 'package:god_of_debate/features/debate/presentation/create_debate_room_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -86,6 +89,27 @@ final router = GoRouter(
     GoRoute(
       path: '/admin/notices',
       builder: (context, state) => const AdminNoticeScreen(), // (곧 드릴거야)
+    ),
+
+    GoRoute(
+      path: '/create-debate-room',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final topicTitle = extra?['title'] ?? '';
+        final topicDescription = extra?['description'] ?? '';
+        final stances = List<String>.from(extra?['stances'] ?? []);
+
+        return CreateDebateRoomScreen(
+          topicTitle: topicTitle,
+          topicDescription: topicDescription,
+          stances: stances,
+        );
+      },
+    ),
+
+    GoRoute(
+      path: '/topic-template-search',
+      builder: (context, state) => const TopicTemplateSearchScreen(),
     ),
   ],
 );

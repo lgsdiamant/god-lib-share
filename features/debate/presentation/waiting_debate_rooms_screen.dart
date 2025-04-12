@@ -85,7 +85,7 @@ class WaitingDebateRoomsScreen extends ConsumerWidget {
                 title: const Text('기존 주제 선택'),
                 onTap: () {
                   Navigator.pop(context);
-                  context.go('/select-topic');
+                  context.push('/topic-template-search');
                 },
               ),
             ],

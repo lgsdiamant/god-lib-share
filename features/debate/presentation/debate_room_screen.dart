@@ -21,18 +21,18 @@ class DebateRoomScreen extends ConsumerStatefulWidget {
 
 class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
   late final DebateRoomController _controller;
-  String? _selectedDebaterId; // ✅ 선택한 토론자 ID를 저장하는 상태
+  String? _selectedDebaterId; // ✅ 선택한 토론자 ID 저장
 
   @override
   void initState() {
     super.initState();
     _controller = DebateRoomController(widget.roomId, ref);
-    _controller.initialize();
+    _controller.initialize(); // ✅ 관전자 입장 등록
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.dispose(); // ✅ 관전자 퇴장 처리
     super.dispose();
   }
 
@@ -61,10 +61,11 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
       body: debateRoomAsync.when(
         data: (room) {
           final debaters = (room['debaters'] as List?)?.cast<String>() ?? [];
+          final observers = (room['observers'] as List?)?.cast<String>() ?? [];
 
           return Column(
             children: [
-              _buildRoomInfo(room),
+              _buildRoomInfo(room, observers.length),
               const Divider(),
               Expanded(
                 child: messagesAsync.when(
@@ -84,7 +85,7 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
               DebateChatWidget(onSend: _controller.sendMessage),
               ObserverCommentBox(onComment: _controller.sendObserverComment),
               const SizedBox(height: 8),
-              _buildDebaterVoteSection(debaters), // ✅ 토론자 투표 버튼들
+              _buildDebaterVoteSection(debaters), // ✅ 토론자 투표
               const SizedBox(height: 8),
               votesAsync.when(
                 data: (votes) => _buildVoteResult(votes),
@@ -100,7 +101,7 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
     );
   }
 
-  Widget _buildRoomInfo(Map<String, dynamic> room) {
+  Widget _buildRoomInfo(Map<String, dynamic> room, int observerCount) {
     return Padding(
       padding: const EdgeInsets.all(kDefaultPadding),
       child: Column(
@@ -122,6 +123,14 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
               Text(room['status'] ?? '알 수 없음'),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('관전자 수: ',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Text('$observerCount명'),
+            ],
+          ),
         ],
       ),
     );
@@ -134,7 +143,7 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
         final isSelected = _selectedDebaterId == debaterId;
         return ViewerVoteButton(
           debateRoomId: widget.roomId,
-          voterId: 'currentUserId', // 🔥 실제 로그인된 유저 ID로 교체 필요
+          voterId: 'currentUserId', // 🔥 실제 로그인 유저 ID로 교체 필요
           targetDebaterId: debaterId,
           isSelected: isSelected,
           onTap: () {
