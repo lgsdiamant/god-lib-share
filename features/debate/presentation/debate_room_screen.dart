@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../core/constants/constants.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../application/debate_room_controller.dart';
 import '../application/debate_providers.dart';
 import 'widgets/chat_bubble.dart';
 import 'widgets/observer_comment_box.dart';
-import 'widgets/viewer_vote_button.dart';
 
 class DebateRoomScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -20,7 +18,7 @@ class DebateRoomScreen extends ConsumerStatefulWidget {
 
 class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
   late final DebateRoomController _controller;
-  double _commentBoxHeightFactor = 0.2; // ✅ 초기 댓글창 높이 (20%)
+  double _commentBoxHeightFactor = 0.2;
   bool _isExpanded = false;
   String? _selectedDebaterId;
 
@@ -88,7 +86,10 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
 
   Widget _buildTopicCard(String title, String description) {
     return ExpansionTile(
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: kDefaultPadding),
@@ -101,7 +102,8 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
   Widget _buildChatArea(AsyncValue<List<Map<String, dynamic>>> messagesAsync) {
     return Padding(
       padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).size.height * _commentBoxHeightFactor),
+        bottom: MediaQuery.of(context).size.height * _commentBoxHeightFactor,
+      ),
       child: messagesAsync.when(
         data: (messages) {
           return ListView.builder(
@@ -158,7 +160,8 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
               const SizedBox(height: 8),
               Expanded(
                 child: ObserverCommentBox(
-                    onComment: _controller.sendObserverComment),
+                  onComment: _controller.sendObserverComment,
+                ),
               ),
               const Divider(),
               Expanded(
@@ -179,7 +182,6 @@ class _DebateRoomScreenState extends ConsumerState<DebateRoomScreen> {
     if (votes.isEmpty) {
       return const Center(child: Text('아직 투표가 없습니다.'));
     }
-
     return ListView(
       padding: const EdgeInsets.all(8),
       children: votes.entries.map((entry) {

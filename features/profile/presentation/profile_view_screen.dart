@@ -8,28 +8,33 @@ import 'package:go_router/go_router.dart';
 import '../../../core/providers/firebase_providers.dart';
 
 class ProfileViewScreen extends ConsumerWidget {
-  const ProfileViewScreen({super.key});
+  final String uid; // ✅ 특정 사용자 UID
+
+  const ProfileViewScreen({super.key, required this.uid});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.read(firebaseAuthProvider);
     final firestore = ref.read(firebaseFirestoreProvider);
-    final user = auth.currentUser;
+    final currentUid = auth.currentUser?.uid;
+
+    final isMyProfile = uid == currentUid; // ✅ 현재 로그인된 사용자인지 판단
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(strProfileViewTitle),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              context.push('/profile-edit');
-            },
-          ),
+          if (isMyProfile) // ✅ 본인일 경우에만 수정 버튼
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                context.push('/profile-edit');
+              },
+            ),
         ],
       ),
       body: FutureBuilder<DocumentSnapshot>(
-        future: firestore.collection(kUsersCollection).doc(user?.uid).get(),
+        future: firestore.collection(kUsersCollection).doc(uid).get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -39,6 +44,7 @@ class ProfileViewScreen extends ConsumerWidget {
           }
 
           final profile = snapshot.data!.data() as Map<String, dynamic>;
+          final isPhonePublic = profile['isPhonePublic'] ?? false;
 
           return Padding(
             padding: const EdgeInsets.all(kDefaultPadding),
@@ -77,8 +83,9 @@ class ProfileViewScreen extends ConsumerWidget {
                       Text('나이대: ${profile[kFieldAgeGroup] ?? ''}',
                           style: const TextStyle(fontSize: 18)),
                       const SizedBox(height: 8),
-                      Text('전화번호: ${profile[kFieldPhone] ?? ''}',
-                          style: const TextStyle(fontSize: 18)),
+                      if (isPhonePublic) // ✅ 전화번호 공개 동의 시에만 보여줌
+                        Text('전화번호: ${profile[kFieldPhone] ?? ''}',
+                            style: const TextStyle(fontSize: 18)),
                     ],
                   ),
                 ),

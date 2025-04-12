@@ -7,6 +7,7 @@ import 'package:god_of_debate/features/admin/presentation/admin_user_screen.dart
 import 'package:god_of_debate/features/auth/presentation/login_screen.dart';
 import 'package:god_of_debate/features/auth/presentation/signup_screen.dart';
 import 'package:god_of_debate/features/debate/presentation/create_debate_room_screen.dart';
+import 'package:god_of_debate/features/debate/presentation/debate_applications_screen.dart';
 import 'package:god_of_debate/features/debate/presentation/debate_room_detail_screen.dart';
 import 'package:god_of_debate/features/debate/presentation/waiting_debate_rooms_screen.dart';
 import 'package:god_of_debate/features/home/presentation/home_screen.dart';
@@ -18,7 +19,6 @@ import 'package:god_of_debate/features/ai/presentation/ai_result_screen.dart';
 import 'package:god_of_debate/features/admin/presentation/admin_screen.dart';
 import 'package:god_of_debate/features/splash/presentation/splash_screen.dart';
 import 'package:god_of_debate/features/topic/presentation/topic_template_search_screen.dart';
-import 'package:god_of_debate/features/debate/presentation/create_debate_room_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -40,9 +40,13 @@ final router = GoRouter(
       builder: (context, state) => const HomeScreen(),
     ),
     GoRoute(
-      path: '/profile-view',
-      builder: (context, state) => const ProfileViewScreen(),
+      path: '/profile/:uid',
+      builder: (context, state) {
+        final uid = state.pathParameters['uid']!;
+        return ProfileViewScreen(uid: uid); // ✅
+      },
     ),
+
     GoRoute(
       path: '/profile-edit',
       builder: (context, state) => const ProfileEditScreen(),
@@ -142,6 +146,14 @@ final router = GoRouter(
     GoRoute(
       path: '/topic-template-search',
       builder: (context, state) => const TopicTemplateSearchScreen(),
+    ),
+
+    GoRoute(
+      path: '/debate-applications/:roomId',
+      builder: (context, state) {
+        final roomId = state.pathParameters['roomId']!;
+        return DebateApplicationsScreen(roomId: roomId);
+      },
     ),
   ],
 );
